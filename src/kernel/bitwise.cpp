@@ -69,8 +69,8 @@ void stu_bitwise(std::span<std::int8_t> result, std::span<const std::int8_t> a,
 
     size_t i = 0;
 
-    // unroll 16x
-    for (; i + 15 < n; i += 8) {
+    // unroll 8x
+    for (; i + 7 < n; i += 8) {
         #pragma GCC unroll 8
         for (int k = 0; k < 8; ++k) {
             uint8_t ua = pa[i + k];
