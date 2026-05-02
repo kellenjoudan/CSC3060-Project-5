@@ -133,8 +133,11 @@ void stu_filter_gradient(float& out, const data_struct& data,
 
     double total = 0.0;
 
+    std::vector<float> row_a(W), row_b(W), row_c(W);
+
     for (size_t y = 1; y + 1 < H; ++y) {
 
+        // PRELOAD ALL ROW POINTERS
         const float* a0 = &data.a[(y - 1) * W];
         const float* a1 = &data.a[y * W];
         const float* a2 = &data.a[(y + 1) * W];
@@ -147,79 +150,79 @@ void stu_filter_gradient(float& out, const data_struct& data,
         const float* c1 = &data.c[y * W];
         const float* c2 = &data.c[(y + 1) * W];
 
-        // initialize sliding window (x = 1)
-        float sum_a =
-            (a0[0] + a0[1] + a0[2]) +
-            (a1[0] + a1[1] + a1[2]) +
-            (a2[0] + a2[1] + a2[2]);
+        const float* d0 = &data.d[(y - 1) * W];
+        const float* d1 = &data.d[y * W];
+        const float* d2 = &data.d[(y + 1) * W];
 
-        float sum_b =
-            (b0[0] + b0[1] + b0[2]) +
-            (b1[0] + b1[1] + b1[2]) +
-            (b2[0] + b2[1] + b2[2]);
+        const float* e0 = &data.e[(y - 1) * W];
+        const float* e1 = &data.e[y * W];
+        const float* e2 = &data.e[(y + 1) * W];
 
-        float sum_c =
-            (c0[0] + c0[1] + c0[2]) +
-            (c1[0] + c1[1] + c1[2]) +
-            (c2[0] + c2[1] + c2[2]);
+        const float* f0 = &data.f[(y - 1) * W];
+        const float* f1 = &data.f[y * W];
+        const float* f2 = &data.f[(y + 1) * W];
+
+        const float* g0 = &data.g[(y - 1) * W];
+        const float* g1 = &data.g[y * W];
+        const float* g2 = &data.g[(y + 1) * W];
+
+        const float* h0 = &data.h[(y - 1) * W];
+        const float* h1 = &data.h[y * W];
+        const float* h2 = &data.h[(y + 1) * W];
+
+        const float* i0 = &data.i[(y - 1) * W];
+        const float* i1 = &data.i[y * W];
+        const float* i2 = &data.i[(y + 1) * W];
+
+        // horizontal pass
+        for (size_t x = 1; x + 1 < W; ++x) {
+            row_a[x] = a1[x-1] + a1[x] + a1[x+1];
+            row_b[x] = b1[x-1] + b1[x] + b1[x+1];
+            row_c[x] = c1[x-1] + c1[x] + c1[x+1];
+        }
 
         for (size_t x = 1; x + 1 < W; ++x) {
 
-            // compute p1
-            float avg_a = sum_a * inv9;
-            float avg_b = sum_b * inv9;
-            float avg_c = sum_c * inv9;
+            // BOX FILTER
+            float sum_a = (a0[x-1] + a0[x] + a0[x+1]) + row_a[x] +
+                          (a2[x-1] + a2[x] + a2[x+1]);
 
-            float p1 = avg_a * avg_b + avg_c;
+            float sum_b = (b0[x-1] + b0[x] + b0[x+1]) + row_b[x] +
+                          (b2[x-1] + b2[x] + b2[x+1]);
 
-            // Sobel
-            const size_t ym1 = (y - 1) * W;
-            const size_t y0  = y * W;
-            const size_t yp1 = (y + 1) * W;
+            float sum_c = (c0[x-1] + c0[x] + c0[x+1]) + row_c[x] +
+                          (c2[x-1] + c2[x] + c2[x+1]);
 
-            const size_t xm1 = x - 1;
-            const size_t xp1 = x + 1;
+            float p1 = (sum_a * inv9) * (sum_b * inv9) + (sum_c * inv9);
 
-            float p2 =
-                (-data.d[ym1 + xm1] + data.d[ym1 + xp1]
-                 -2.0f * data.d[y0 + xm1] + 2.0f * data.d[y0 + xp1]
-                 -data.d[yp1 + xm1] + data.d[yp1 + xp1])
+            // SOBEL X
+            float dx_d = -d0[x-1] + d0[x+1]
+                         -2.0f * d1[x-1] + 2.0f * d1[x+1]
+                         -d2[x-1] + d2[x+1];
 
-                *
-                (-data.e[ym1 + xm1] + data.e[ym1 + xp1]
-                 -2.0f * data.e[y0 + xm1] + 2.0f * data.e[y0 + xp1]
-                 -data.e[yp1 + xm1] + data.e[yp1 + xp1])
+            float dx_e = -e0[x-1] + e0[x+1]
+                         -2.0f * e1[x-1] + 2.0f * e1[x+1]
+                         -e2[x-1] + e2[x+1];
 
-                +
-                (-data.f[ym1 + xm1] + data.f[ym1 + xp1]
-                 -2.0f * data.f[y0 + xm1] + 2.0f * data.f[y0 + xp1]
-                 -data.f[yp1 + xm1] + data.f[yp1 + xp1]);
+            float dx_f = -f0[x-1] + f0[x+1]
+                         -2.0f * f1[x-1] + 2.0f * f1[x+1]
+                         -f2[x-1] + f2[x+1];
 
-            float p3 =
-                (-data.g[ym1 + xm1] - 2.0f * data.g[ym1 + x] - data.g[ym1 + xp1]
-                 + data.g[yp1 + xm1] + 2.0f * data.g[yp1 + x] + data.g[yp1 + xp1])
+            float p2 = dx_d * dx_e + dx_f;
 
-                *
-                (-data.h[ym1 + xm1] - 2.0f * data.h[ym1 + x] - data.h[ym1 + xp1]
-                 + data.h[yp1 + xm1] + 2.0f * data.h[yp1 + x] + data.h[yp1 + xp1])
+            // ---- SOBEL Y ----
+            float dy_g = -g0[x-1] - 2.0f * g0[x] - g0[x+1]
+                         + g2[x-1] + 2.0f * g2[x] + g2[x+1];
 
-                +
-                (-data.i[ym1 + xm1] - 2.0f * data.i[ym1 + x] - data.i[ym1 + xp1]
-                 + data.i[yp1 + xm1] + 2.0f * data.i[yp1 + x] + data.i[yp1 + xp1]);
+            float dy_h = -h0[x-1] - 2.0f * h0[x] - h0[x+1]
+                         + h2[x-1] + 2.0f * h2[x] + h2[x+1];
+
+            float dy_i = -i0[x-1] - 2.0f * i0[x] - i0[x+1]
+                         + i2[x-1] + 2.0f * i2[x] + i2[x+1];
+
+            float p3 = dy_g * dy_h + dy_i;
 
             total += p1 + p2 + p3;
-
-            // SLIDING WINDOW UPDATE
-            if (x + 2 < W) {
-                sum_a += (a0[x+1] + a1[x+1] + a2[x+1])
-                       - (a0[x-2] + a1[x-2] + a2[x-2]);
-
-                sum_b += (b0[x+1] + b1[x+1] + b2[x+1])
-                       - (b0[x-2] + b1[x-2] + b2[x-2]);
-
-                sum_c += (c0[x+1] + c1[x+1] + c2[x+1])
-                       - (c0[x-2] + c1[x-2] + c2[x-2]);
-            }
         }
     }
 
