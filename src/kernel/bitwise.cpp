@@ -55,51 +55,51 @@ void naive_bitwise(std::span<std::int8_t> result,
 }
 
 // TODO: Optimize the bitwise function
-void stu_bitwise(std::span<std::int8_t> result,
-                 std::span<const std::int8_t> a,
+void stu_bitwise(std::span<std::int8_t> result, std::span<const std::int8_t> a,
                  std::span<const std::int8_t> b) {
 
-    constexpr uint64_t kMaskLo = 0x5A5A5A5A5A5A5A5AULL;
-    constexpr uint64_t kMaskHi = 0xC3C3C3C3C3C3C3C3ULL;
+    constexpr uint8_t kMaskLo = 0x5Au;
+    constexpr uint8_t kMaskHi = 0xC3u;
 
     size_t n = std::min({result.size(), a.size(), b.size()});
 
-    const uint64_t* pa = reinterpret_cast<const uint64_t*>(a.data());
-    const uint64_t* pb = reinterpret_cast<const uint64_t*>(b.data());
-    uint64_t* pr = reinterpret_cast<uint64_t*>(result.data());
+    const uint8_t* pa = reinterpret_cast<const uint8_t*>(a.data());
+    const uint8_t* pb = reinterpret_cast<const uint8_t*>(b.data());
+    uint8_t* pr = reinterpret_cast<uint8_t*>(result.data());
 
     size_t i = 0;
-    size_t n64 = n / 8;
 
-    // 8 bytes per instruction
-    for (; i + 7 < n64; ++i) {
+    // unroll 16x
+    for (; i + 15 < n; i += 8) {
+        #pragma GCC unroll 8
+        for (int k = 0; k < 8; ++k) {
+            uint8_t ua = pa[i + k];
+            uint8_t ub = pb[i + k];
 
-        uint64_t va0 = pa[i];
-        uint64_t vb0 = pb[i];
+            uint8_t shared = ua & ub;
+            uint8_t either = ua | ub;
+            uint8_t diff   = ua ^ ub;
 
-        uint64_t shared = va0 & vb0;
-        uint64_t either = va0 | vb0;
-        uint64_t diff   = va0 ^ vb0;
+            uint8_t mixed0 = (diff & kMaskLo) | (~shared & ~kMaskLo);
+            uint8_t mixed1 = ((either ^ kMaskHi) & (shared | ~kMaskHi)) ^ diff;
 
-        uint64_t mixed0 = (diff & kMaskLo) | (~shared & ~kMaskLo);
-        uint64_t mixed1 = ((either ^ kMaskHi) & (shared | ~kMaskHi)) ^ diff;
-
-        pr[i] = mixed0 ^ mixed1;
+            pr[i + k] = mixed0 ^ mixed1;
+        }
     }
 
     // tail
-    for (size_t j = i * 8; j < n; ++j) {
-        uint8_t ua = ((uint8_t*)a.data())[j];
-        uint8_t ub = ((uint8_t*)b.data())[j];
+    for (; i < n; ++i) {
+        uint8_t ua = pa[i];
+        uint8_t ub = pb[i];
 
         uint8_t shared = ua & ub;
         uint8_t either = ua | ub;
         uint8_t diff   = ua ^ ub;
 
-        uint8_t mixed0 = (diff & 0x5A) | (~shared & ~0x5A);
-        uint8_t mixed1 = ((either ^ 0xC3) & (shared | ~0xC3)) ^ diff;
+        uint8_t mixed0 = (diff & kMaskLo) | (~shared & ~kMaskLo);
+        uint8_t mixed1 = ((either ^ kMaskHi) & (shared | ~kMaskHi)) ^ diff;
 
-        ((uint8_t*)result.data())[j] = mixed0 ^ mixed1;
+        pr[i] = mixed0 ^ mixed1;
     }
 }
 
