@@ -9,6 +9,7 @@
 #include "relu.h"
 #include "matmul.h"
 #include "trace_replay.h"
+#include "bitwise.h"
 
 
 int main() {
@@ -18,10 +19,11 @@ int main() {
     initialize_relu(&relu_args_naive, relu_size, seed);
     std::println("\tReLU: vector length={}", relu_size);
 
-    trace_replay_args trace_args_naive;
-    initialize_trace_replay(trace_args_naive, 1 << 16, 1 << 20, seed);
-    std::cout << "\tTrace Replay: records=" << trace_args_naive.records.size()
-              << ", trace_length=" << trace_args_naive.trace.size() << '\n';
+    constexpr size_t bitwise_size = 1024000;
+    bitwise_args bitwise_args_naive;
+    initialize_bitwise(&bitwise_args_naive, bitwise_size, seed);
+    std::println("\tBitwise: vector length={}", bitwise_size);
+
 
     std::vector<bench_t> benchmarks = {
                 {"ReLU (Naive)",
@@ -32,21 +34,22 @@ int main() {
                  &relu_args_naive,
                  BASELINE_RELU},
 
-                {"Trace Replay (Naive)",
-                naive_trace_replay_wrapper,
-                naive_trace_replay_wrapper,
-                trace_replay_check,
-                &trace_args_naive,
-                &trace_args_naive,
-                BASELINE_TRACE_REPLAY},
+                {"Bitwise (Naive)",
+                naive_bitwise_wrapper,
+                naive_bitwise_wrapper,
+                bitwise_check,
+                &bitwise_args_naive,
+                &bitwise_args_naive,
+                BASELINE_BITWISE},
 
-                {"Trace Replay (Student)",
-                stu_trace_replay_wrapper,
-                naive_trace_replay_wrapper,
-                trace_replay_check,
-                &trace_args_naive,
-                &trace_args_naive,
-                BASELINE_TRACE_REPLAY},
+                {"Bitwise (Student)",
+                stu_bitwise_wrapper,
+                naive_bitwise_wrapper,
+                bitwise_check,
+                &bitwise_args_naive,
+                &bitwise_args_naive,
+                BASELINE_BITWISE},
+
     };
     std::cout << "\nRunning Benchmarks...\n";
     std::cout << "--------------------------------------------------------\n";
