@@ -67,18 +67,37 @@ void stu_bitwise(std::span<std::int8_t> result, std::span<const std::int8_t> a,
     const std::uint8_t* pb = reinterpret_cast<const std::uint8_t*>(b.data());
     std::uint8_t* pr = reinterpret_cast<std::uint8_t*>(result.data());
 
-    for (size_t i = 0; i < n; ++i) {
+    size_t i = 0;
 
-        const uint8_t ua = pa[i];
-        const uint8_t ub = pb[i];
+    // 8-way unrolling
+    for (; i + 7 < n; i += 8) {
+        #pragma unroll
+        for (int k = 0; k < 8; ++k) {
+            uint8_t ua = pa[i + k];
+            uint8_t ub = pb[i + k];
 
-        const uint8_t shared = ua & ub;
-        const uint8_t either = ua | ub;
-        const uint8_t diff   = ua ^ ub;
+            uint8_t shared = ua & ub;
+            uint8_t either = ua | ub;
+            uint8_t diff   = ua ^ ub;
 
-        const uint8_t mixed0 = (diff & kMaskLo) | (~shared & ~kMaskLo);
-        const uint8_t mixed1 =
-            ((either ^ kMaskHi) & (shared | ~kMaskHi)) ^ diff;
+            uint8_t mixed0 = (diff & kMaskLo) | (~shared & ~kMaskLo);
+            uint8_t mixed1 = ((either ^ kMaskHi) & (shared | ~kMaskHi)) ^ diff;
+
+            pr[i + k] = mixed0 ^ mixed1;
+        }
+    }
+
+    // tail
+    for (; i < n; ++i) {
+        uint8_t ua = pa[i];
+        uint8_t ub = pb[i];
+
+        uint8_t shared = ua & ub;
+        uint8_t either = ua | ub;
+        uint8_t diff   = ua ^ ub;
+
+        uint8_t mixed0 = (diff & kMaskLo) | (~shared & ~kMaskLo);
+        uint8_t mixed1 = ((either ^ kMaskHi) & (shared | ~kMaskHi)) ^ diff;
 
         pr[i] = mixed0 ^ mixed1;
     }
