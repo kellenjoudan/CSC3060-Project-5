@@ -55,58 +55,51 @@ void naive_bitwise(std::span<std::int8_t> result,
 }
 
 // TODO: Optimize the bitwise function
-void stu_bitwise(std::span<std::int8_t> result, std::span<const std::int8_t> a,
+void stu_bitwise(std::span<std::int8_t> result,
+                 std::span<const std::int8_t> a,
                  std::span<const std::int8_t> b) {
 
-    constexpr uint8_t kMaskLo = 0x5Au;
-    constexpr uint8_t kMaskHi = 0xC3u;
+    constexpr uint64_t kMaskLo = 0x5A5A5A5A5A5A5A5AULL;
+    constexpr uint64_t kMaskHi = 0xC3C3C3C3C3C3C3C3ULL;
 
     size_t n = std::min({result.size(), a.size(), b.size()});
 
-    auto* pa = reinterpret_cast<const uint8_t*>(a.data());
-    auto* pb = reinterpret_cast<const uint8_t*>(b.data());
-    auto* pr = reinterpret_cast<uint8_t*>(result.data());
+    const uint64_t* pa = reinterpret_cast<const uint64_t*>(a.data());
+    const uint64_t* pb = reinterpret_cast<const uint64_t*>(b.data());
+    uint64_t* pr = reinterpret_cast<uint64_t*>(result.data());
 
     size_t i = 0;
+    size_t n64 = n / 8;
 
-    // process 32 bytes at a time (data parallelism)
-    for (; i + 31 < n; i += 8) {
+    // 8 bytes per instruction
+    for (; i + 7 < n64; ++i) {
 
-        uint64_t va, vb;
+        uint64_t va0 = pa[i];
+        uint64_t vb0 = pb[i];
 
-        std::memcpy(&va, pa + i, 8);
-        std::memcpy(&vb, pb + i, 8);
+        uint64_t shared = va0 & vb0;
+        uint64_t either = va0 | vb0;
+        uint64_t diff   = va0 ^ vb0;
 
-        uint64_t shared = va & vb;
-        uint64_t either = va | vb;
-        uint64_t diff   = va ^ vb;
+        uint64_t mixed0 = (diff & kMaskLo) | (~shared & ~kMaskLo);
+        uint64_t mixed1 = ((either ^ kMaskHi) & (shared | ~kMaskHi)) ^ diff;
 
-        uint64_t mixed0 =
-            (diff & 0x5A5A5A5A5A5A5A5AULL) |
-            (~shared & ~0x5A5A5A5A5A5A5A5AULL);
-
-        uint64_t mixed1 =
-            ((either ^ 0xC3C3C3C3C3C3C3C3ULL) &
-             (shared | ~0xC3C3C3C3C3C3C3C3ULL)) ^ diff;
-
-        uint64_t out = mixed0 ^ mixed1;
-
-        std::memcpy(pr + i, &out, 8);
+        pr[i] = mixed0 ^ mixed1;
     }
 
     // tail
-    for (; i < n; ++i) {
-        uint8_t ua = pa[i];
-        uint8_t ub = pb[i];
+    for (size_t j = i * 8; j < n; ++j) {
+        uint8_t ua = ((uint8_t*)a.data())[j];
+        uint8_t ub = ((uint8_t*)b.data())[j];
 
         uint8_t shared = ua & ub;
         uint8_t either = ua | ub;
         uint8_t diff   = ua ^ ub;
 
-        uint8_t mixed0 = (diff & kMaskLo) | (~shared & ~kMaskLo);
-        uint8_t mixed1 = ((either ^ kMaskHi) & (shared | ~kMaskHi)) ^ diff;
+        uint8_t mixed0 = (diff & 0x5A) | (~shared & ~0x5A);
+        uint8_t mixed1 = ((either ^ 0xC3) & (shared | ~0xC3)) ^ diff;
 
-        pr[i] = mixed0 ^ mixed1;
+        ((uint8_t*)result.data())[j] = mixed0 ^ mixed1;
     }
 }
 
