@@ -138,8 +138,8 @@ void stu_BlkSchls(std::vector<float> &CallOptionPrice,
         const float sqrtT = std::sqrtf(t);
         const float vol2 = v * v * 0.5f;
 
-        const float d1 = ((r + vol2) * t + logSK) / (v * sqrtT);
-        const float d2 = d1 - v * sqrtT;
+        float d1 = ((r + vol2) * t + logSK) / (v * sqrtT);
+        float d2 = d1 - v * sqrtT;
 
         float N1 = 0.0f, N2 = 0.0f;
         CNDF(d1, N1);
