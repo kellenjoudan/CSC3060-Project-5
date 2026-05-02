@@ -58,33 +58,40 @@ void naive_bitwise(std::span<std::int8_t> result,
 void stu_bitwise(std::span<std::int8_t> result, std::span<const std::int8_t> a,
                  std::span<const std::int8_t> b) {
 
-    constexpr std::uint8_t kMaskLo = 0x5Au;
-    constexpr std::uint8_t kMaskHi = 0xC3u;
+    constexpr uint8_t kMaskLo = 0x5Au;
+    constexpr uint8_t kMaskHi = 0xC3u;
 
-    const size_t n = std::min({result.size(), a.size(), b.size()});
+    size_t n = std::min({result.size(), a.size(), b.size()});
 
-    const std::uint8_t* pa = reinterpret_cast<const std::uint8_t*>(a.data());
-    const std::uint8_t* pb = reinterpret_cast<const std::uint8_t*>(b.data());
-    std::uint8_t* pr = reinterpret_cast<std::uint8_t*>(result.data());
+    auto* pa = reinterpret_cast<const uint8_t*>(a.data());
+    auto* pb = reinterpret_cast<const uint8_t*>(b.data());
+    auto* pr = reinterpret_cast<uint8_t*>(result.data());
 
     size_t i = 0;
 
-    // 8-way unrolling
+    // process 8 bytes at a time (data parallelism)
     for (; i + 7 < n; i += 8) {
-        #pragma unroll
-        for (int k = 0; k < 8; ++k) {
-            uint8_t ua = pa[i + k];
-            uint8_t ub = pb[i + k];
 
-            uint8_t shared = ua & ub;
-            uint8_t either = ua | ub;
-            uint8_t diff   = ua ^ ub;
+        uint64_t va, vb;
 
-            uint8_t mixed0 = (diff & kMaskLo) | (~shared & ~kMaskLo);
-            uint8_t mixed1 = ((either ^ kMaskHi) & (shared | ~kMaskHi)) ^ diff;
+        std::memcpy(&va, pa + i, 8);
+        std::memcpy(&vb, pb + i, 8);
 
-            pr[i + k] = mixed0 ^ mixed1;
-        }
+        uint64_t shared = va & vb;
+        uint64_t either = va | vb;
+        uint64_t diff   = va ^ vb;
+
+        uint64_t mixed0 =
+            (diff & 0x5A5A5A5A5A5A5A5AULL) |
+            (~shared & ~0x5A5A5A5A5A5A5A5AULL);
+
+        uint64_t mixed1 =
+            ((either ^ 0xC3C3C3C3C3C3C3C3ULL) &
+             (shared | ~0xC3C3C3C3C3C3C3C3ULL)) ^ diff;
+
+        uint64_t out = mixed0 ^ mixed1;
+
+        std::memcpy(pr + i, &out, 8);
     }
 
     // tail
