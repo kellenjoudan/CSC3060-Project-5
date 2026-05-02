@@ -128,87 +128,91 @@ void stu_filter_gradient(float& out, const data_struct& data,
                          std::size_t width, std::size_t height) {
     const std::size_t W = width;
     const std::size_t H = height;
+
+    const float* a = data.a.data();
+    const float* b = data.b.data();
+    const float* c = data.c.data();
+    const float* d = data.d.data();
+    const float* e = data.e.data();
+    const float* f = data.f.data();
+    const float* g = data.g.data();
+    const float* h = data.h.data();
+    const float* i = data.i.data();
+
     constexpr float inv9 = 1.0f / 9.0f;
 
-    const auto& a = data.a;
-    const auto& b = data.b;
-    const auto& c = data.c;
-    const auto& d = data.d;
-    const auto& e = data.e;
-    const auto& f = data.f;
-    const auto& g = data.g;
-    const auto& h = data.h;
-    const auto& i_arr = data.i;
+    float total = 0.0f;
 
-    double total = 0.0;
+    for (std::size_t y = 1; y < H - 1; ++y) {
+        std::size_t row0 = (y - 1) * W;
+        std::size_t row1 = y * W;
+        std::size_t row2 = (y + 1) * W;
 
-    for (std::size_t y = 1; y + 1 < H; ++y) {
-        const std::size_t up = (y - 1) * W;
-        const std::size_t mid = y * W;
-        const std::size_t down = (y + 1) * W;
-
-        for (std::size_t x = 1; x + 1 < W; ++x) {
+        for (std::size_t x = 1; x < W - 1; ++x) {
 
             const std::size_t xm1 = x - 1;
-            const std::size_t x0  = x;
             const std::size_t xp1 = x + 1;
 
-            // 3x3 box filter (simple + compiler-friendly)
+            // 3x3 box filter (a,b,c) — manually unrolled access
             float sum_a =
-                a[up + xm1] + a[up + x0] + a[up + xp1] +
-                a[mid + xm1] + a[mid + x0] + a[mid + xp1] +
-                a[down + xm1] + a[down + x0] + a[down + xp1];
+                a[row0 + xm1] + a[row0 + x] + a[row0 + xp1] +
+                a[row1 + xm1] + a[row1 + x] + a[row1 + xp1] +
+                a[row2 + xm1] + a[row2 + x] + a[row2 + xp1];
 
             float sum_b =
-                b[up + xm1] + b[up + x0] + b[up + xp1] +
-                b[mid + xm1] + b[mid + x0] + b[mid + xp1] +
-                b[down + xm1] + b[down + x0] + b[down + xp1];
+                b[row0 + xm1] + b[row0 + x] + b[row0 + xp1] +
+                b[row1 + xm1] + b[row1 + x] + b[row1 + xp1] +
+                b[row2 + xm1] + b[row2 + x] + b[row2 + xp1];
 
             float sum_c =
-                c[up + xm1] + c[up + x0] + c[up + xp1] +
-                c[mid + xm1] + c[mid + x0] + c[mid + xp1] +
-                c[down + xm1] + c[down + x0] + c[down + xp1];
+                c[row0 + xm1] + c[row0 + x] + c[row0 + xp1] +
+                c[row1 + xm1] + c[row1 + x] + c[row1 + xp1] +
+                c[row2 + xm1] + c[row2 + x] + c[row2 + xp1];
 
-            float p1 = (sum_a * inv9) * (sum_b * inv9) + (sum_c * inv9);
+            float avg_a = sum_a * inv9;
+            float avg_b = sum_b * inv9;
+            float avg_c = sum_c * inv9;
 
-            // Sobel X
+            float p1 = avg_a * avg_b + avg_c;
+
+            // Sobel X (d,e,f)
             float dx_d =
-                -d[up + xm1] + d[up + xp1]
-                -2.0f * d[mid + xm1] + 2.0f * d[mid + xp1]
-                -d[down + xm1] + d[down + xp1];
+                -d[row0 + xm1] + d[row0 + xp1]
+                -2.0f * d[row1 + xm1] + 2.0f * d[row1 + xp1]
+                -d[row2 + xm1] + d[row2 + xp1];
 
             float dx_e =
-                -e[up + xm1] + e[up + xp1]
-                -2.0f * e[mid + xm1] + 2.0f * e[mid + xp1]
-                -e[down + xm1] + e[down + xp1];
+                -e[row0 + xm1] + e[row0 + xp1]
+                -2.0f * e[row1 + xm1] + 2.0f * e[row1 + xp1]
+                -e[row2 + xm1] + e[row2 + xp1];
 
             float dx_f =
-                -f[up + xm1] + f[up + xp1]
-                -2.0f * f[mid + xm1] + 2.0f * f[mid + xp1]
-                -f[down + xm1] + f[down + xp1];
+                -f[row0 + xm1] + f[row0 + xp1]
+                -2.0f * f[row1 + xm1] + 2.0f * f[row1 + xp1]
+                -f[row2 + xm1] + f[row2 + xp1];
 
             float p2 = dx_d * dx_e + dx_f;
 
-            // Sobel Y
+            // Sobel Y (g,h,i)
             float gy_g =
-                -g[up + xm1] - 2.0f * g[up + x0] - g[up + xp1]
-                + g[down + xm1] + 2.0f * g[down + x0] + g[down + xp1];
+                -g[row0 + xm1] - 2.0f * g[row0 + x] - g[row0 + xp1]
+                + g[row2 + xm1] + 2.0f * g[row2 + x] + g[row2 + xp1];
 
             float gy_h =
-                -h[up + xm1] - 2.0f * h[up + x0] - h[up + xp1]
-                + h[down + xm1] + 2.0f * h[down + x0] + h[down + xp1];
+                -h[row0 + xm1] - 2.0f * h[row0 + x] - h[row0 + xp1]
+                + h[row2 + xm1] + 2.0f * h[row2 + x] + h[row2 + xp1];
 
             float gy_i =
-                -i_arr[up + xm1] - 2.0f * i_arr[up + x0] - i_arr[up + xp1]
-                + i_arr[down + xm1] + 2.0f * i_arr[down + x0] + i_arr[down + xp1];
+                -i[row0 + xm1] - 2.0f * i[row0 + x] - i[row0 + xp1]
+                + i[row2 + xm1] + 2.0f * i[row2 + x] + i[row2 + xp1];
 
             float p3 = gy_g * gy_h + gy_i;
 
-            total += (p1 + p2 + p3);
+            total += p1 + p2 + p3;
         }
     }
 
-    out = static_cast<float>(total);
+    out = total;
 }
 
 void naive_filter_gradient_wrapper(void* ctx) {
