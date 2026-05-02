@@ -127,44 +127,64 @@ void naive_filter_gradient(float& out, const data_struct& data,
 void stu_filter_gradient(float& out, const data_struct& data,
                         std::size_t width, std::size_t height) {
 
-    const std::size_t W = width;
-    const std::size_t H = height;
+    const size_t W = width;
+    const size_t H = height;
     constexpr float inv9 = 1.0f / 9.0f;
 
     double total = 0.0;
 
-    for (std::size_t y = 1; y + 1 < H; ++y) {
+    // temporary buffers
+    std::vector<float> row_a(W), row_b(W), row_c(W);
 
-        const std::size_t ym1 = (y - 1) * W;
-        const std::size_t y0  = y * W;
-        const std::size_t yp1 = (y + 1) * W;
+    for (size_t y = 1; y + 1 < H; ++y) {
 
-        for (std::size_t x = 1; x + 1 < W; ++x) {
+        const float* a0 = &data.a[(y - 1) * W];
+        const float* a1 = &data.a[y * W];
+        const float* a2 = &data.a[(y + 1) * W];
 
-            const std::size_t xm1 = x - 1;
-            const std::size_t xp1 = x + 1;
+        const float* b0 = &data.b[(y - 1) * W];
+        const float* b1 = &data.b[y * W];
+        const float* b2 = &data.b[(y + 1) * W];
 
-            // a,b,c (for box filter)
-            float a00 = data.a[ym1 + xm1]; float a01 = data.a[ym1 + x]; float a02 = data.a[ym1 + xp1];
-            float a10 = data.a[y0  + xm1]; float a11 = data.a[y0  + x]; float a12 = data.a[y0  + xp1];
-            float a20 = data.a[yp1 + xm1]; float a21 = data.a[yp1 + x]; float a22 = data.a[yp1 + xp1];
+        const float* c0 = &data.c[(y - 1) * W];
+        const float* c1 = &data.c[y * W];
+        const float* c2 = &data.c[(y + 1) * W];
 
-            float b00 = data.b[ym1 + xm1]; float b01 = data.b[ym1 + x]; float b02 = data.b[ym1 + xp1];
-            float b10 = data.b[y0  + xm1]; float b11 = data.b[y0  + x]; float b12 = data.b[y0  + xp1];
-            float b20 = data.b[yp1 + xm1]; float b21 = data.b[yp1 + x]; float b22 = data.b[yp1 + xp1];
+        // horizontal pass
+        for (size_t x = 1; x + 1 < W; ++x) {
+            row_a[x] = a1[x-1] + a1[x] + a1[x+1];
+            row_b[x] = b1[x-1] + b1[x] + b1[x+1];
+            row_c[x] = c1[x-1] + c1[x] + c1[x+1];
+        }
 
-            float c00 = data.c[ym1 + xm1]; float c01 = data.c[ym1 + x]; float c02 = data.c[ym1 + xp1];
-            float c10 = data.c[y0  + xm1]; float c11 = data.c[y0  + x]; float c12 = data.c[y0  + xp1];
-            float c20 = data.c[yp1 + xm1]; float c21 = data.c[yp1 + x]; float c22 = data.c[yp1 + xp1];
+        for (size_t x = 1; x + 1 < W; ++x) {
 
-            // BOX FILTER
-            float sum_a = a00+a01+a02 + a10+a11+a12 + a20+a21+a22;
-            float sum_b = b00+b01+b02 + b10+b11+b12 + b20+b21+b22;
-            float sum_c = c00+c01+c02 + c10+c11+c12 + c20+c21+c22;
+            // vertical combine
+            float sum_a =
+                (a0[x-1] + a0[x] + a0[x+1]) +
+                row_a[x] +
+                (a2[x-1] + a2[x] + a2[x+1]);
+
+            float sum_b =
+                (b0[x-1] + b0[x] + b0[x+1]) +
+                row_b[x] +
+                (b2[x-1] + b2[x] + b2[x+1]);
+
+            float sum_c =
+                (c0[x-1] + c0[x] + c0[x+1]) +
+                row_c[x] +
+                (c2[x-1] + c2[x] + c2[x+1]);
 
             float p1 = (sum_a * inv9) * (sum_b * inv9) + (sum_c * inv9);
 
-            // SOBEL X
+            // Sobel
+            const size_t ym1 = (y - 1) * W;
+            const size_t y0  = y * W;
+            const size_t yp1 = (y + 1) * W;
+
+            const size_t xm1 = x - 1;
+            const size_t xp1 = x + 1;
+
             float p2 =
                 (-data.d[ym1 + xm1] + data.d[ym1 + xp1]
                  -2.0f * data.d[y0 + xm1] + 2.0f * data.d[y0 + xp1]
@@ -180,7 +200,6 @@ void stu_filter_gradient(float& out, const data_struct& data,
                  -2.0f * data.f[y0 + xm1] + 2.0f * data.f[y0 + xp1]
                  -data.f[yp1 + xm1] + data.f[yp1 + xp1]);
 
-            // SOBEL Y
             float p3 =
                 (-data.g[ym1 + xm1] - 2.0f * data.g[ym1 + x] - data.g[ym1 + xp1]
                  + data.g[yp1 + xm1] + 2.0f * data.g[yp1 + x] + data.g[yp1 + xp1])
