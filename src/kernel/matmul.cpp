@@ -50,20 +50,18 @@ void stu_matmul(std::vector<float>& C,
                 int n) {
     std::fill(C.begin(), C.end(), 0.0f);
 
-    constexpr int BS = 32;
+    constexpr int BS = 64;
 
-    // Pre-transpose B (keep, but improve locality)
     std::vector<float> B_T(n * n);
 
+    // transpose B 
     for (int i = 0; i < n; ++i) {
-        float* dst = &B_T[i * n];
-        const float* src = &B[i];
+        const float* src = &B[i * n];
         for (int j = 0; j < n; ++j) {
-            dst[j] = src[j * n];
+            B_T[j * n + i] = src[j];
         }
     }
 
-    // blocked matmul with register accumulation
     for (int ii = 0; ii < n; ii += BS) {
         for (int jj = 0; jj < n; jj += BS) {
             for (int kk = 0; kk < n; kk += BS) {
@@ -78,15 +76,24 @@ void stu_matmul(std::vector<float>& C,
 
                     for (int j = jj; j < j_max; ++j) {
 
-                        float sum = c_row[j];  // register accumulator
-
                         const float* b_col = &B_T[j * n];
+                        float sum = c_row[j];
 
-                        for (int k = kk; k < k_max; ++k) {
+                        int k = kk;
+
+                        // manual unroll
+                        for (; k + 3 < k_max; k += 4) {
+                            sum += a_row[k]     * b_col[k]
+                                +  a_row[k + 1] * b_col[k + 1]
+                                +  a_row[k + 2] * b_col[k + 2]
+                                +  a_row[k + 3] * b_col[k + 3];
+                        }
+
+                        for (; k < k_max; ++k) {
                             sum += a_row[k] * b_col[k];
                         }
 
-                        c_row[j] = sum;  // write back once
+                        c_row[j] = sum;
                     }
                 }
             }
