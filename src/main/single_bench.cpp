@@ -8,6 +8,7 @@
 #include "bench.h"
 #include "relu.h"
 #include "matmul.h"
+#include "trace_replay.h"
 
 
 int main() {
@@ -17,9 +18,10 @@ int main() {
     initialize_relu(&relu_args_naive, relu_size, seed);
     std::println("\tReLU: vector length={}", relu_size);
 
-    matmul_args matmul_args_naive;
-    initialize_matmul(matmul_args_naive, 512, seed);
-    std::println("\tMatMul: n={}", matmul_args_naive.n);
+    trace_replay_args trace_args_naive;
+    initialize_trace_replay(trace_args_naive, 1 << 16, 1 << 20, seed);
+    std::cout << "\tTrace Replay: records=" << trace_args_naive.records.size()
+              << ", trace_length=" << trace_args_naive.trace.size() << '\n';
 
     std::vector<bench_t> benchmarks = {
                 {"ReLU (Naive)",
@@ -30,22 +32,21 @@ int main() {
                  &relu_args_naive,
                  BASELINE_RELU},
 
-                 {"MatMul (Naive)",
-                naive_matmul_wrapper,
-                naive_matmul_wrapper,
-                matmul_check,
-                &matmul_args_naive,
-                &matmul_args_naive,
-                BASELINE_MATMUL},
+                {"Trace Replay (Naive)",
+                naive_trace_replay_wrapper,
+                naive_trace_replay_wrapper,
+                trace_replay_check,
+                &trace_args_naive,
+                &trace_args_naive,
+                BASELINE_TRACE_REPLAY},
 
-                {"MatMul (Student)",
-                stu_matmul_wrapper,
-                naive_matmul_wrapper,
-                matmul_check,
-                &matmul_args_naive,
-                &matmul_args_naive,
-                BASELINE_MATMUL},
-                        
+                {"Trace Replay (Student)",
+                stu_trace_replay_wrapper,
+                naive_trace_replay_wrapper,
+                trace_replay_check,
+                &trace_args_naive,
+                &trace_args_naive,
+                BASELINE_TRACE_REPLAY},
     };
     std::cout << "\nRunning Benchmarks...\n";
     std::cout << "--------------------------------------------------------\n";
