@@ -116,6 +116,32 @@ void naive_BlkSchls(std::vector<float> &CallOptionPrice,
     }
 }
 
+static inline float fast_CNDF(float x) {
+    // Abramowitz-Stegun approximation
+    float sign = (x < 0.0f) ? 1.0f : 0.0f;
+    x = std::fabs(x);
+
+    const float inv_sqrt_2pi = 0.3989422804014327f;
+    const float k = 1.0f / (1.0f + 0.2316419f * x);
+
+    const float k2 = k * k;
+    const float k3 = k2 * k;
+    const float k4 = k3 * k;
+    const float k5 = k4 * k;
+
+    float poly =
+        0.319381530f * k +
+       -0.356563782f * k2 +
+        1.781477937f * k3 +
+       -1.821255978f * k4 +
+        1.330274429f * k5;
+
+    float exp_term = std::expf(-0.5f * x * x) * inv_sqrt_2pi;
+    float result = 1.0f - poly * exp_term;
+
+    return sign ? (1.0f - result) : result;
+}
+
 void stu_BlkSchls(std::vector<float> &CallOptionPrice,
                   std::vector<float> &PutOptionPrice,
                   const std::vector<float> &spotPrice,
@@ -134,19 +160,21 @@ void stu_BlkSchls(std::vector<float> &CallOptionPrice,
         const float v = volatility[i];
         const float t = time[i];
 
-        const float logSK = std::logf(S / K);
-        const float sqrtT = std::sqrtf(t);
-        const float vol2 = v * v * 0.5f;
+        const float sqrt_t = std::sqrtf(t);
+        const float log_sk = std::logf(S / K);
+        const float v2 = v * v * 0.5f;
 
-        float d1 = ((r + vol2) * t + logSK) / (v * sqrtT);
-        float d2 = d1 - v * sqrtT;
+        const float vt_sqrt = v * sqrt_t;
+        const float inv_vt = 1.0f / vt_sqrt;
 
-        float N1 = 0.0f, N2 = 0.0f;
-        CNDF(d1, N1);
-        CNDF(d2, N2);
+        float d1 = ((r + v2) * t + log_sk) * inv_vt;
+        float d2 = d1 - vt_sqrt;
 
-        const float expRT = std::expf(-r * t);
-        const float F = K * expRT;
+        float N1 = fast_CNDF(d1);
+        float N2 = fast_CNDF(d2);
+
+        const float exp_rt = std::expf(-r * t);
+        const float F = K * exp_rt;
 
         CallOptionPrice[i] = S * N1 - F * N2;
         PutOptionPrice[i]  = F * (1.0f - N2) - S * (1.0f - N1);
