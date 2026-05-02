@@ -142,71 +142,68 @@ void stu_filter_gradient(float& out, const data_struct& data,
 
     double total = 0.0;
 
-    // skip borders
     for (std::size_t y = 1; y + 1 < H; ++y) {
-        const std::size_t y_up = (y - 1) * W;
-        const std::size_t y_mid = y * W;
-        const std::size_t y_down = (y + 1) * W;
+        const std::size_t up = (y - 1) * W;
+        const std::size_t mid = y * W;
+        const std::size_t down = (y + 1) * W;
 
         for (std::size_t x = 1; x + 1 < W; ++x) {
 
-            // 3x3 BOX FILTER (a, b, c)
-            const std::size_t x0 = x - 1;
-            const std::size_t x1 = x;
-            const std::size_t x2 = x + 1;
+            const std::size_t xm1 = x - 1;
+            const std::size_t x0  = x;
+            const std::size_t xp1 = x + 1;
 
-            const std::size_t idxs[9] = {
-                y_up + x0, y_up + x1, y_up + x2,
-                y_mid + x0, y_mid + x1, y_mid + x2,
-                y_down + x0, y_down + x1, y_down + x2
-            };
+            // box filter
+            double sa = 0, sb = 0, sc = 0;
 
-            double sum_a = 0, sum_b = 0, sum_c = 0;
+            sa += a[up + xm1] + a[up + x0] + a[up + xp1];
+            sa += a[mid + xm1] + a[mid + x0] + a[mid + xp1];
+            sa += a[down + xm1] + a[down + x0] + a[down + xp1];
 
-            #pragma unroll
-            for (int k = 0; k < 9; ++k) {
-                const std::size_t idx = idxs[k];
-                sum_a += a[idx];
-                sum_b += b[idx];
-                sum_c += c[idx];
-            }
+            sb += b[up + xm1] + b[up + x0] + b[up + xp1];
+            sb += b[mid + xm1] + b[mid + x0] + b[mid + xp1];
+            sb += b[down + xm1] + b[down + x0] + b[down + xp1];
 
-            const float p1 = (sum_a * inv9) * (sum_b * inv9) + (sum_c * inv9);
+            sc += c[up + xm1] + c[up + x0] + c[up + xp1];
+            sc += c[mid + xm1] + c[mid + x0] + c[mid + xp1];
+            sc += c[down + xm1] + c[down + x0] + c[down + xp1];
 
-            // SOBEL X (d, e, f)
+            const float p1 = (sa * inv9) * (sb * inv9) + (sc * inv9);
+
+            // sobel x
             const float dx_d =
-                -d[y_up + x0] + d[y_up + x2]
-                -2.0f * d[y_mid + x0] + 2.0f * d[y_mid + x2]
-                -d[y_down + x0] + d[y_down + x2];
+                -d[up + xm1] + d[up + xp1]
+                -2.0f * d[mid + xm1] + 2.0f * d[mid + xp1]
+                -d[down + xm1] + d[down + xp1];
 
             const float dx_e =
-                -e[y_up + x0] + e[y_up + x2]
-                -2.0f * e[y_mid + x0] + 2.0f * e[y_mid + x2]
-                -e[y_down + x0] + e[y_down + x2];
+                -e[up + xm1] + e[up + xp1]
+                -2.0f * e[mid + xm1] + 2.0f * e[mid + xp1]
+                -e[down + xm1] + e[down + xp1];
 
             const float dx_f =
-                -f[y_up + x0] + f[y_up + x2]
-                -2.0f * f[y_mid + x0] + 2.0f * f[y_mid + x2]
-                -f[y_down + x0] + f[y_down + x2];
+                -f[up + xm1] + f[up + xp1]
+                -2.0f * f[mid + xm1] + 2.0f * f[mid + xp1]
+                -f[down + xm1] + f[down + xp1];
 
             const float p2 = dx_d * dx_e + dx_f;
 
-            // SOBEL Y (g, h, i)
+            // sobel y
             const float gy_g =
-                -g[y_up + x0] - 2.0f * g[y_up + x1] - g[y_up + x2]
-                + g[y_down + x0] + 2.0f * g[y_down + x1] + g[y_down + x2];
+                -g[up + xm1] - 2.0f * g[up + x0] - g[up + xp1]
+                + g[down + xm1] + 2.0f * g[down + x0] + g[down + xp1];
 
             const float gy_h =
-                -h[y_up + x0] - 2.0f * h[y_up + x1] - h[y_up + x2]
-                + h[y_down + x0] + 2.0f * h[y_down + x1] + h[y_down + x2];
+                -h[up + xm1] - 2.0f * h[up + x0] - h[up + xp1]
+                + h[down + xm1] + 2.0f * h[down + x0] + h[down + xp1];
 
             const float gy_i =
-                -i_arr[y_up + x0] - 2.0f * i_arr[y_up + x1] - i_arr[y_up + x2]
-                + i_arr[y_down + x0] + 2.0f * i_arr[y_down + x1] + i_arr[y_down + x2];
+                -i_arr[up + xm1] - 2.0f * i_arr[up + x0] - i_arr[up + xp1]
+                + i_arr[down + xm1] + 2.0f * i_arr[down + x0] + i_arr[down + xp1];
 
             const float p3 = gy_g * gy_h + gy_i;
 
-            total += (p1 + p2 + p3);
+            total += p1 + p2 + p3;
         }
     }
 
