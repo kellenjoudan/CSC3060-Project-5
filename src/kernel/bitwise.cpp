@@ -63,28 +63,35 @@ void stu_bitwise(std::span<std::int8_t> result, std::span<const std::int8_t> a,
 
     size_t n = std::min({result.size(), a.size(), b.size()});
 
-    const uint8_t* pa = reinterpret_cast<const uint8_t*>(a.data());
-    const uint8_t* pb = reinterpret_cast<const uint8_t*>(b.data());
-    uint8_t* pr = reinterpret_cast<uint8_t*>(result.data());
+    auto* pa = reinterpret_cast<const uint8_t*>(a.data());
+    auto* pb = reinterpret_cast<const uint8_t*>(b.data());
+    auto* pr = reinterpret_cast<uint8_t*>(result.data());
 
     size_t i = 0;
 
-    // unroll 8x
-    for (; i + 7 < n; i += 8) {
-        #pragma GCC unroll 8
-        for (int k = 0; k < 8; ++k) {
-            uint8_t ua = pa[i + k];
-            uint8_t ub = pb[i + k];
+    // process 32 bytes at a time (data parallelism)
+    for (; i + 31 < n; i += 32) {
 
-            uint8_t shared = ua & ub;
-            uint8_t either = ua | ub;
-            uint8_t diff   = ua ^ ub;
+        uint64_t va, vb;
 
-            uint8_t mixed0 = (diff & kMaskLo) | (~shared & ~kMaskLo);
-            uint8_t mixed1 = ((either ^ kMaskHi) & (shared | ~kMaskHi)) ^ diff;
+        std::memcpy(&va, pa + i, 8);
+        std::memcpy(&vb, pb + i, 8);
 
-            pr[i + k] = mixed0 ^ mixed1;
-        }
+        uint64_t shared = va & vb;
+        uint64_t either = va | vb;
+        uint64_t diff   = va ^ vb;
+
+        uint64_t mixed0 =
+            (diff & 0x5A5A5A5A5A5A5A5AULL) |
+            (~shared & ~0x5A5A5A5A5A5A5A5AULL);
+
+        uint64_t mixed1 =
+            ((either ^ 0xC3C3C3C3C3C3C3C3ULL) &
+             (shared | ~0xC3C3C3C3C3C3C3C3ULL)) ^ diff;
+
+        uint64_t out = mixed0 ^ mixed1;
+
+        std::memcpy(pr + i, &out, 8);
     }
 
     // tail
