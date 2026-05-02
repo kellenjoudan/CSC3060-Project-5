@@ -135,109 +135,63 @@ void stu_filter_gradient(float& out, const data_struct& data,
 
     for (std::size_t y = 1; y + 1 < H; ++y) {
 
-        const float* a0 = &data.a[(y - 1) * W];
-        const float* a1 = &data.a[y * W];
-        const float* a2 = &data.a[(y + 1) * W];
-
-        const float* b0 = &data.b[(y - 1) * W];
-        const float* b1 = &data.b[y * W];
-        const float* b2 = &data.b[(y + 1) * W];
-
-        const float* c0 = &data.c[(y - 1) * W];
-        const float* c1 = &data.c[y * W];
-        const float* c2 = &data.c[(y + 1) * W];
-
-        const float* d0 = &data.d[(y - 1) * W];
-        const float* d1 = &data.d[y * W];
-        const float* d2 = &data.d[(y + 1) * W];
-
-        const float* e0 = &data.e[(y - 1) * W];
-        const float* e1 = &data.e[y * W];
-        const float* e2 = &data.e[(y + 1) * W];
-
-        const float* f0 = &data.f[(y - 1) * W];
-        const float* f1 = &data.f[y * W];
-        const float* f2 = &data.f[(y + 1) * W];
-
-        const float* g0 = &data.g[(y - 1) * W];
-        const float* g1 = &data.g[y * W];
-        const float* g2 = &data.g[(y + 1) * W];
-
-        const float* h0 = &data.h[(y - 1) * W];
-        const float* h1 = &data.h[y * W];
-        const float* h2 = &data.h[(y + 1) * W];
-
-        const float* i0 = &data.i[(y - 1) * W];
-        const float* i1 = &data.i[y * W];
-        const float* i2 = &data.i[(y + 1) * W];
-
-        // initialize first column (x = 1)
-        double sum_a =
-            a0[0] + a0[1] + a0[2] +
-            a1[0] + a1[1] + a1[2] +
-            a2[0] + a2[1] + a2[2];
-
-        double sum_b =
-            b0[0] + b0[1] + b0[2] +
-            b1[0] + b1[1] + b1[2] +
-            b2[0] + b2[1] + b2[2];
-
-        double sum_c =
-            c0[0] + c0[1] + c0[2] +
-            c1[0] + c1[1] + c1[2] +
-            c2[0] + c2[1] + c2[2];
+        const std::size_t ym1 = (y - 1) * W;
+        const std::size_t y0  = y * W;
+        const std::size_t yp1 = (y + 1) * W;
 
         for (std::size_t x = 1; x + 1 < W; ++x) {
 
-            // update sliding window
-            if (x > 1) {
-                sum_a += a0[x+1] + a1[x+1] + a2[x+1]
-                       - a0[x-2] - a1[x-2] - a2[x-2];
+            const std::size_t xm1 = x - 1;
+            const std::size_t xp1 = x + 1;
 
-                sum_b += b0[x+1] + b1[x+1] + b2[x+1]
-                       - b0[x-2] - b1[x-2] - b2[x-2];
+            // a,b,c (for box filter)
+            float a00 = data.a[ym1 + xm1]; float a01 = data.a[ym1 + x]; float a02 = data.a[ym1 + xp1];
+            float a10 = data.a[y0  + xm1]; float a11 = data.a[y0  + x]; float a12 = data.a[y0  + xp1];
+            float a20 = data.a[yp1 + xm1]; float a21 = data.a[yp1 + x]; float a22 = data.a[yp1 + xp1];
 
-                sum_c += c0[x+1] + c1[x+1] + c2[x+1]
-                       - c0[x-2] - c1[x-2] - c2[x-2];
-            }
+            float b00 = data.b[ym1 + xm1]; float b01 = data.b[ym1 + x]; float b02 = data.b[ym1 + xp1];
+            float b10 = data.b[y0  + xm1]; float b11 = data.b[y0  + x]; float b12 = data.b[y0  + xp1];
+            float b20 = data.b[yp1 + xm1]; float b21 = data.b[yp1 + x]; float b22 = data.b[yp1 + xp1];
 
-            const float avg_a = sum_a * inv9;
-            const float avg_b = sum_b * inv9;
-            const float avg_c = sum_c * inv9;
-            const float p1 = avg_a * avg_b + avg_c;
+            float c00 = data.c[ym1 + xm1]; float c01 = data.c[ym1 + x]; float c02 = data.c[ym1 + xp1];
+            float c10 = data.c[y0  + xm1]; float c11 = data.c[y0  + x]; float c12 = data.c[y0  + xp1];
+            float c20 = data.c[yp1 + xm1]; float c21 = data.c[yp1 + x]; float c22 = data.c[yp1 + xp1];
 
-            // Sobel X
-            const float sobel_dx =
-                -d0[x-1] + d0[x+1]
-                -2.0f * d1[x-1] + 2.0f * d1[x+1]
-                -d2[x-1] + d2[x+1];
+            // BOX FILTER
+            float sum_a = a00+a01+a02 + a10+a11+a12 + a20+a21+a22;
+            float sum_b = b00+b01+b02 + b10+b11+b12 + b20+b21+b22;
+            float sum_c = c00+c01+c02 + c10+c11+c12 + c20+c21+c22;
 
-            const float sobel_ex =
-                -e0[x-1] + e0[x+1]
-                -2.0f * e1[x-1] + 2.0f * e1[x+1]
-                -e2[x-1] + e2[x+1];
+            float p1 = (sum_a * inv9) * (sum_b * inv9) + (sum_c * inv9);
 
-            const float sobel_fx =
-                -f0[x-1] + f0[x+1]
-                -2.0f * f1[x-1] + 2.0f * f1[x+1]
-                -f2[x-1] + f2[x+1];
+            // SOBEL X
+            float p2 =
+                (-data.d[ym1 + xm1] + data.d[ym1 + xp1]
+                 -2.0f * data.d[y0 + xm1] + 2.0f * data.d[y0 + xp1]
+                 -data.d[yp1 + xm1] + data.d[yp1 + xp1])
 
-            const float p2 = sobel_dx * sobel_ex + sobel_fx;
+                *
+                (-data.e[ym1 + xm1] + data.e[ym1 + xp1]
+                 -2.0f * data.e[y0 + xm1] + 2.0f * data.e[y0 + xp1]
+                 -data.e[yp1 + xm1] + data.e[yp1 + xp1])
 
-            // Sobel Y
-            const float sobel_gy =
-                -g0[x-1] - 2.0f * g0[x] - g0[x+1]
-                + g2[x-1] + 2.0f * g2[x] + g2[x+1];
+                +
+                (-data.f[ym1 + xm1] + data.f[ym1 + xp1]
+                 -2.0f * data.f[y0 + xm1] + 2.0f * data.f[y0 + xp1]
+                 -data.f[yp1 + xm1] + data.f[yp1 + xp1]);
 
-            const float sobel_hy =
-                -h0[x-1] - 2.0f * h0[x] - h0[x+1]
-                + h2[x-1] + 2.0f * h2[x] + h2[x+1];
+            // SOBEL Y
+            float p3 =
+                (-data.g[ym1 + xm1] - 2.0f * data.g[ym1 + x] - data.g[ym1 + xp1]
+                 + data.g[yp1 + xm1] + 2.0f * data.g[yp1 + x] + data.g[yp1 + xp1])
 
-            const float sobel_iy =
-                -i0[x-1] - 2.0f * i0[x] - i0[x+1]
-                + i2[x-1] + 2.0f * i2[x] + i2[x+1];
+                *
+                (-data.h[ym1 + xm1] - 2.0f * data.h[ym1 + x] - data.h[ym1 + xp1]
+                 + data.h[yp1 + xm1] + 2.0f * data.h[yp1 + x] + data.h[yp1 + xp1])
 
-            const float p3 = sobel_gy * sobel_hy + sobel_iy;
+                +
+                (-data.i[ym1 + xm1] - 2.0f * data.i[ym1 + x] - data.i[ym1 + xp1]
+                 + data.i[yp1 + xm1] + 2.0f * data.i[yp1 + x] + data.i[yp1 + xp1]);
 
             total += p1 + p2 + p3;
         }
