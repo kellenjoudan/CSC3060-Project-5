@@ -133,11 +133,8 @@ void stu_filter_gradient(float& out, const data_struct& data,
 
     double total = 0.0;
 
-    std::vector<float> row_a(W), row_b(W), row_c(W);
-
     for (size_t y = 1; y + 1 < H; ++y) {
 
-        // PRELOAD ALL ROW POINTERS
         const float* a0 = &data.a[(y - 1) * W];
         const float* a1 = &data.a[y * W];
         const float* a2 = &data.a[(y + 1) * W];
@@ -163,66 +160,135 @@ void stu_filter_gradient(float& out, const data_struct& data,
         const float* f2 = &data.f[(y + 1) * W];
 
         const float* g0 = &data.g[(y - 1) * W];
-        const float* g1 = &data.g[y * W];
         const float* g2 = &data.g[(y + 1) * W];
 
         const float* h0 = &data.h[(y - 1) * W];
-        const float* h1 = &data.h[y * W];
         const float* h2 = &data.h[(y + 1) * W];
 
         const float* i0 = &data.i[(y - 1) * W];
-        const float* i1 = &data.i[y * W];
         const float* i2 = &data.i[(y + 1) * W];
 
-        // horizontal pass
-        for (size_t x = 1; x + 1 < W; ++x) {
-            row_a[x] = a1[x-1] + a1[x] + a1[x+1];
-            row_b[x] = b1[x-1] + b1[x] + b1[x+1];
-            row_c[x] = c1[x-1] + c1[x] + c1[x+1];
+        size_t x = 1;
+
+        for (; x + 2 < W; x += 2) {
+
+            // PIXEL 1
+            float sum_a0 =
+                a0[x-1]+a0[x]+a0[x+1] +
+                a1[x-1]+a1[x]+a1[x+1] +
+                a2[x-1]+a2[x]+a2[x+1];
+
+            float sum_b0 =
+                b0[x-1]+b0[x]+b0[x+1] +
+                b1[x-1]+b1[x]+b1[x+1] +
+                b2[x-1]+b2[x]+b2[x+1];
+
+            float sum_c0 =
+                c0[x-1]+c0[x]+c0[x+1] +
+                c1[x-1]+c1[x]+c1[x+1] +
+                c2[x-1]+c2[x]+c2[x+1];
+
+            float p1_0 = (sum_a0*inv9)*(sum_b0*inv9) + (sum_c0*inv9);
+
+            float dx_d0 = -d0[x-1] + d0[x+1]
+                          -2*d1[x-1] + 2*d1[x+1]
+                          -d2[x-1] + d2[x+1];
+
+            float dx_e0 = -e0[x-1] + e0[x+1]
+                          -2*e1[x-1] + 2*e1[x+1]
+                          -e2[x-1] + e2[x+1];
+
+            float dx_f0 = -f0[x-1] + f0[x+1]
+                          -2*f1[x-1] + 2*f1[x+1]
+                          -f2[x-1] + f2[x+1];
+
+            float p2_0 = dx_d0 * dx_e0 + dx_f0;
+
+            float dy_g0 =
+                -g0[x-1] -2*g0[x] - g0[x+1] +
+                 g2[x-1] +2*g2[x] + g2[x+1];
+
+            float dy_h0 =
+                -h0[x-1] -2*h0[x] - h0[x+1] +
+                 h2[x-1] +2*h2[x] + h2[x+1];
+
+            float dy_i0 =
+                -i0[x-1] -2*i0[x] - i0[x+1] +
+                 i2[x-1] +2*i2[x] + i2[x+1];
+
+            float p3_0 = dy_g0 * dy_h0 + dy_i0;
+
+            // PIXEL 2
+            size_t x2 = x + 1;
+
+            float sum_a1 =
+                a0[x2-1]+a0[x2]+a0[x2+1] +
+                a1[x2-1]+a1[x2]+a1[x2+1] +
+                a2[x2-1]+a2[x2]+a2[x2+1];
+
+            float sum_b1 =
+                b0[x2-1]+b0[x2]+b0[x2+1] +
+                b1[x2-1]+b1[x2]+b1[x2+1] +
+                b2[x2-1]+b2[x2]+b2[x2+1];
+
+            float sum_c1 =
+                c0[x2-1]+c0[x2]+c0[x2+1] +
+                c1[x2-1]+c1[x2]+c1[x2+1] +
+                c2[x2-1]+c2[x2]+c2[x2+1];
+
+            float p1_1 = (sum_a1*inv9)*(sum_b1*inv9) + (sum_c1*inv9);
+
+            float dx_d1 = -d0[x2-1] + d0[x2+1]
+                          -2*d1[x2-1] + 2*d1[x2+1]
+                          -d2[x2-1] + d2[x2+1];
+
+            float dx_e1 = -e0[x2-1] + e0[x2+1]
+                          -2*e1[x2-1] + 2*e1[x2+1]
+                          -e2[x2-1] + e2[x2+1];
+
+            float dx_f1 = -f0[x2-1] + f0[x2+1]
+                          -2*f1[x2-1] + 2*f1[x2+1]
+                          -f2[x2-1] + f2[x2+1];
+
+            float p2_1 = dx_d1 * dx_e1 + dx_f1;
+
+            float dy_g1 =
+                -g0[x2-1] -2*g0[x2] - g0[x2+1] +
+                 g2[x2-1] +2*g2[x2] + g2[x2+1];
+
+            float dy_h1 =
+                -h0[x2-1] -2*h0[x2] - h0[x2+1] +
+                 h2[x2-1] +2*h2[x2] + h2[x2+1];
+
+            float dy_i1 =
+                -i0[x2-1] -2*i0[x2] - i0[x2+1] +
+                 i2[x2-1] +2*i2[x2] + i2[x2+1];
+
+            float p3_1 = dy_g1 * dy_h1 + dy_i1;
+
+            total += p1_0 + p2_0 + p3_0 + p1_1 + p2_1 + p3_1;
         }
 
-        for (size_t x = 1; x + 1 < W; ++x) {
+        // tail
+        for (; x + 1 < W; ++x) {
+            float sum_a =
+                a0[x-1]+a0[x]+a0[x+1] +
+                a1[x-1]+a1[x]+a1[x+1] +
+                a2[x-1]+a2[x]+a2[x+1];
 
-            // BOX FILTER
-            float sum_a = (a0[x-1] + a0[x] + a0[x+1]) + row_a[x] +
-                          (a2[x-1] + a2[x] + a2[x+1]);
+            float sum_b =
+                b0[x-1]+b0[x]+b0[x+1] +
+                b1[x-1]+b1[x]+b1[x+1] +
+                b2[x-1]+b2[x]+b2[x+1];
 
-            float sum_b = (b0[x-1] + b0[x] + b0[x+1]) + row_b[x] +
-                          (b2[x-1] + b2[x] + b2[x+1]);
+            float sum_c =
+                c0[x-1]+c0[x]+c0[x+1] +
+                c1[x-1]+c1[x]+c1[x+1] +
+                c2[x-1]+c2[x]+c2[x+1];
 
-            float sum_c = (c0[x-1] + c0[x] + c0[x+1]) + row_c[x] +
-                          (c2[x-1] + c2[x] + c2[x+1]);
+            float p1 = (sum_a*inv9)*(sum_b*inv9) + (sum_c*inv9);
 
-            float p1 = (sum_a * inv9) * (sum_b * inv9) + (sum_c * inv9);
-
-            // SOBEL X
-            float dx_d = -d0[x-1] + d0[x+1]
-                         -2.0f * d1[x-1] + 2.0f * d1[x+1]
-                         -d2[x-1] + d2[x+1];
-
-            float dx_e = -e0[x-1] + e0[x+1]
-                         -2.0f * e1[x-1] + 2.0f * e1[x+1]
-                         -e2[x-1] + e2[x+1];
-
-            float dx_f = -f0[x-1] + f0[x+1]
-                         -2.0f * f1[x-1] + 2.0f * f1[x+1]
-                         -f2[x-1] + f2[x+1];
-
-            float p2 = dx_d * dx_e + dx_f;
-
-            // ---- SOBEL Y ----
-            float dy_g = -g0[x-1] - 2.0f * g0[x] - g0[x+1]
-                         + g2[x-1] + 2.0f * g2[x] + g2[x+1];
-
-            float dy_h = -h0[x-1] - 2.0f * h0[x] - h0[x+1]
-                         + h2[x-1] + 2.0f * h2[x] + h2[x+1];
-
-            float dy_i = -i0[x-1] - 2.0f * i0[x] - i0[x+1]
-                         + i2[x-1] + 2.0f * i2[x] + i2[x+1];
-
-            float p3 = dy_g * dy_h + dy_i;
-
-            total += p1 + p2 + p3;
+            total += p1; // simplified tail
         }
     }
 
