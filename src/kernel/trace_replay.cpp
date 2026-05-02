@@ -92,7 +92,28 @@ void naive_trace_replay(uint64_t& out,
 void stu_trace_replay(uint64_t& out,
                       const std::vector<RequestRecord>& records,
                       const std::vector<uint32_t>& trace) {
-    // TODO: Implement your version, and call it in stu_trace_replay_wrapper
+    uint64_t total = 0;
+    const uint64_t order_mix = 1315423911ull;
+
+    const size_t n = records.size();
+
+    // Precompute costs
+    std::vector<uint64_t> cost(n);
+
+    for (size_t i = 0; i < n; ++i) {
+        cost[i] =
+            records[i].base_cost +
+            2ull * records[i].retry_penalty +
+            records[i].miss_penalty +
+            (records[i].bytes >> 4);
+    }
+
+    // main loop
+    for (size_t i = 0; i < trace.size(); ++i) {
+        total = total * order_mix + cost[trace[i]];
+    }
+
+    out = total;
 }
 
 void naive_trace_replay_wrapper(void* ctx) {
