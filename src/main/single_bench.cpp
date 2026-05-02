@@ -11,6 +11,7 @@
 #include "trace_replay.h"
 #include "bitwise.h"
 #include "blackscholes.h"
+#include "filter_gradient.h"
 
 
 int main() {
@@ -20,10 +21,14 @@ int main() {
     initialize_relu(&relu_args_naive, relu_size, seed);
     std::println("\tReLU: vector length={}", relu_size);
 
-    blackscholes_args black_args;
-    initialize_blackscholes(black_args, 81920, seed);
-    std::cout << "\tBlack-Scholes options: " << black_args.spot_price.size()
-              << '\n';
+    const std::size_t WIDTH = 1024;
+    const std::size_t HEIGHT = 1024;
+    filter_gradient_args filter_gradient_args_ref;
+    initialize_filter_gradient(&filter_gradient_args_ref,
+                               WIDTH,
+                               HEIGHT,
+                               seed);
+    std::cout << "\tFilter Gradient: " << HEIGHT << " x " << WIDTH << '\n';
 
 
     std::vector<bench_t> benchmarks = {
@@ -35,21 +40,21 @@ int main() {
                  &relu_args_naive,
                  BASELINE_RELU},
 
-                {"Black-Scholes (Naive)",
-                naive_BlkSchls_wrapper,
-                naive_BlkSchls_wrapper,
-                BlkSchls_check,
-                &black_args,
-                &black_args,
-                BASELINE_BLACKSCHOLES},
+                {"Filter Gradient (Naive)",
+                naive_filter_gradient_wrapper,
+                naive_filter_gradient_wrapper,
+                filter_gradient_check,
+                &filter_gradient_args_ref,
+                &filter_gradient_args_ref,
+                BASELINE_FILTER_GRADIENT},
 
-                {"Black-Scholes (Student)",
-                stu_BlkSchls_wrapper,
-                naive_BlkSchls_wrapper,
-                BlkSchls_check,
-                &black_args,
-                &black_args,
-                BASELINE_BLACKSCHOLES},
+                {"Filter Gradient (Student)",
+                stu_filter_gradient_wrapper,
+                naive_filter_gradient_wrapper,
+                filter_gradient_check,
+                &filter_gradient_args_ref,
+                &filter_gradient_args_ref,
+                BASELINE_FILTER_GRADIENT},
 
     };
     std::cout << "\nRunning Benchmarks...\n";

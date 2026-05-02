@@ -121,11 +121,96 @@ void naive_filter_gradient(float& out, const data_struct& data,
     out = total;
 }
 
+// TODO: You may need to add a function to convert data structure (not 
+// included in time measurement), then implement your version in 
+// stu_filter_gradient, whch is called by stu_filter_gradient_wrapper.
 void stu_filter_gradient(float& out, const data_struct& data,
-                   std::size_t width, std::size_t height) {
-    // TODO: You may need to add a function to convert data structure (not 
-    // included in time measurement), then implement your version in 
-    // stu_filter_gradient, whch is called by stu_filter_gradient_wrapper.
+                         std::size_t width, std::size_t height) {
+    const std::size_t W = width;
+    const std::size_t H = height;
+    constexpr float inv9 = 1.0f / 9.0f;
+
+    const auto& a = data.a;
+    const auto& b = data.b;
+    const auto& c = data.c;
+    const auto& d = data.d;
+    const auto& e = data.e;
+    const auto& f = data.f;
+    const auto& g = data.g;
+    const auto& h = data.h;
+    const auto& i_arr = data.i;
+
+    double total = 0.0;
+
+    // skip borders
+    for (std::size_t y = 1; y + 1 < H; ++y) {
+        const std::size_t y_up = (y - 1) * W;
+        const std::size_t y_mid = y * W;
+        const std::size_t y_down = (y + 1) * W;
+
+        for (std::size_t x = 1; x + 1 < W; ++x) {
+
+            // 3x3 BOX FILTER (a, b, c)
+            const std::size_t x0 = x - 1;
+            const std::size_t x1 = x;
+            const std::size_t x2 = x + 1;
+
+            const std::size_t idxs[9] = {
+                y_up + x0, y_up + x1, y_up + x2,
+                y_mid + x0, y_mid + x1, y_mid + x2,
+                y_down + x0, y_down + x1, y_down + x2
+            };
+
+            double sum_a = 0, sum_b = 0, sum_c = 0;
+
+            #pragma unroll
+            for (int k = 0; k < 9; ++k) {
+                const std::size_t idx = idxs[k];
+                sum_a += a[idx];
+                sum_b += b[idx];
+                sum_c += c[idx];
+            }
+
+            const float p1 = (sum_a * inv9) * (sum_b * inv9) + (sum_c * inv9);
+
+            // SOBEL X (d, e, f)
+            const float dx_d =
+                -d[y_up + x0] + d[y_up + x2]
+                -2.0f * d[y_mid + x0] + 2.0f * d[y_mid + x2]
+                -d[y_down + x0] + d[y_down + x2];
+
+            const float dx_e =
+                -e[y_up + x0] + e[y_up + x2]
+                -2.0f * e[y_mid + x0] + 2.0f * e[y_mid + x2]
+                -e[y_down + x0] + e[y_down + x2];
+
+            const float dx_f =
+                -f[y_up + x0] + f[y_up + x2]
+                -2.0f * f[y_mid + x0] + 2.0f * f[y_mid + x2]
+                -f[y_down + x0] + f[y_down + x2];
+
+            const float p2 = dx_d * dx_e + dx_f;
+
+            // SOBEL Y (g, h, i)
+            const float gy_g =
+                -g[y_up + x0] - 2.0f * g[y_up + x1] - g[y_up + x2]
+                + g[y_down + x0] + 2.0f * g[y_down + x1] + g[y_down + x2];
+
+            const float gy_h =
+                -h[y_up + x0] - 2.0f * h[y_up + x1] - h[y_up + x2]
+                + h[y_down + x0] + 2.0f * h[y_down + x1] + h[y_down + x2];
+
+            const float gy_i =
+                -i_arr[y_up + x0] - 2.0f * i_arr[y_up + x1] - i_arr[y_up + x2]
+                + i_arr[y_down + x0] + 2.0f * i_arr[y_down + x1] + i_arr[y_down + x2];
+
+            const float p3 = gy_g * gy_h + gy_i;
+
+            total += (p1 + p2 + p3);
+        }
+    }
+
+    out = static_cast<float>(total);
 }
 
 void naive_filter_gradient_wrapper(void* ctx) {
