@@ -49,6 +49,41 @@ void stu_matmul(std::vector<float>& C,
                 const std::vector<float>& B,
                 int n) {
     // TODO: Implement your version, and call it in stu_matmul_wrapper
+    std::fill(C.begin(), C.end(), 0.0f);
+
+    const int BS = 32;
+
+    // Step 1: transpose B into local buffer (IMPORTANT)
+    std::vector<float> B_T(n * n);
+
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < n; ++j) {
+            B_T[j * n + i] = B[i * n + j];
+        }
+    }
+
+    // Step 2: blocked + cache-friendly multiply
+    for (int ii = 0; ii < n; ii += BS) {
+        for (int kk = 0; kk < n; kk += BS) {
+            for (int jj = 0; jj < n; jj += BS) {
+
+                int i_max = std::min(ii + BS, n);
+                int k_max = std::min(kk + BS, n);
+                int j_max = std::min(jj + BS, n);
+
+                for (int i = ii; i < i_max; ++i) {
+                    for (int k = kk; k < k_max; ++k) {
+
+                        float a = A[i * n + k]; // register reuse
+
+                        for (int j = jj; j < j_max; ++j) {
+                            C[i * n + j] += a * B_T[j * n + k];
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 void naive_matmul_wrapper(void* ctx) {

@@ -119,6 +119,15 @@ int main() {
          &matmul_args_naive,
          &matmul_args_naive,
          BASELINE_MATMUL},
+
+         {"MatMul (Student)",
+        stu_matmul_wrapper,
+        naive_matmul_wrapper,
+        matmul_check,
+        &matmul_args_naive,
+        &matmul_args_naive,
+        BASELINE_MATMUL},
+        
         {"Trace Replay (Naive)",
          naive_trace_replay_wrapper,
          naive_trace_replay_wrapper,
