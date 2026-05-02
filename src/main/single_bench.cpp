@@ -10,6 +10,7 @@
 #include "matmul.h"
 #include "trace_replay.h"
 #include "bitwise.h"
+#include "blackscholes.h"
 
 
 int main() {
@@ -19,10 +20,10 @@ int main() {
     initialize_relu(&relu_args_naive, relu_size, seed);
     std::println("\tReLU: vector length={}", relu_size);
 
-    constexpr size_t bitwise_size = 1024000;
-    bitwise_args bitwise_args_naive;
-    initialize_bitwise(&bitwise_args_naive, bitwise_size, seed);
-    std::println("\tBitwise: vector length={}", bitwise_size);
+    blackscholes_args black_args;
+    initialize_blackscholes(black_args, 81920, seed);
+    std::cout << "\tBlack-Scholes options: " << black_args.spot_price.size()
+              << '\n';
 
 
     std::vector<bench_t> benchmarks = {
@@ -34,21 +35,21 @@ int main() {
                  &relu_args_naive,
                  BASELINE_RELU},
 
-                {"Bitwise (Naive)",
-                naive_bitwise_wrapper,
-                naive_bitwise_wrapper,
-                bitwise_check,
-                &bitwise_args_naive,
-                &bitwise_args_naive,
-                BASELINE_BITWISE},
+                {"Black-Scholes (Naive)",
+                naive_BlkSchls_wrapper,
+                naive_BlkSchls_wrapper,
+                BlkSchls_check,
+                &black_args,
+                &black_args,
+                BASELINE_BLACKSCHOLES},
 
-                {"Bitwise (Student)",
-                stu_bitwise_wrapper,
-                naive_bitwise_wrapper,
-                bitwise_check,
-                &bitwise_args_naive,
-                &bitwise_args_naive,
-                BASELINE_BITWISE},
+                {"Black-Scholes (Student)",
+                stu_BlkSchls_wrapper,
+                naive_BlkSchls_wrapper,
+                BlkSchls_check,
+                &black_args,
+                &black_args,
+                BASELINE_BLACKSCHOLES},
 
     };
     std::cout << "\nRunning Benchmarks...\n";

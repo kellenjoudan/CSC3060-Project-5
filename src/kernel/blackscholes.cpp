@@ -123,9 +123,53 @@ void stu_BlkSchls(std::vector<float> &CallOptionPrice,
                   const std::vector<float> &rate,
                   const std::vector<float> &volatility,
                   const std::vector<float> &time) {
-    // TODO:
-    // Implement your version for BlkSchls here, then 
-    // call it at stu_BlkSchls_wrapper()...
+
+    const size_t n = spotPrice.size();
+
+    for (size_t i = 0; i < n; ++i) {
+
+        float S = spotPrice[i];
+        float K = strike[i];
+        float r = rate[i];
+        float v = volatility[i];
+        float t = time[i];
+
+        float invK = 1.0f / K;
+        float m = S * invK;
+
+        // log(S/K) ≈ fast approx using bit reinterpret (cheap log2 approx)
+        union { float f; uint32_t i; } u = { m };
+        float log_term = (float)((int)(u.i >> 23) - 127) * 0.69314718f;
+
+        // fast sqrt approximation (Newton step)
+        float x = t;
+        x = 0.5f * (x + t / x);
+
+        float sqrt_t = x;
+
+        float vol2 = v * v * 0.5f;
+
+        float d1_num = (r + vol2) * t + log_term;
+        float d1_den = v * sqrt_t;
+
+        float d1 = d1_num / d1_den;
+        float d2 = d1 - d1_den;
+
+        float N1 = 0.0f, N2 = 0.0f;
+        CNDF(d1, N1);
+        CNDF(d2, N2);
+
+        // reuse exp approximation idea (exp(-rt))
+        float exp_rt = 1.0f / (1.0f + r * t + 0.5f * r * r * t * t);
+
+        float F = K * exp_rt;
+
+        float call = S * N1 - F * N2;
+        float put  = F * (1.0f - N2) - S * (1.0f - N1);
+
+        CallOptionPrice[i] = call;
+        PutOptionPrice[i] = put;
+    }
 }
 
 void naive_BlkSchls_wrapper(void *ctx) {
