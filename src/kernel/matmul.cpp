@@ -48,37 +48,45 @@ void stu_matmul(std::vector<float>& C,
                 const std::vector<float>& A,
                 const std::vector<float>& B,
                 int n) {
-    // TODO: Implement your version, and call it in stu_matmul_wrapper
     std::fill(C.begin(), C.end(), 0.0f);
 
-    const int BS = 32;
+    constexpr int BS = 32;
 
-    // Step 1: transpose B into local buffer (IMPORTANT)
+    // Pre-transpose B (keep, but improve locality)
     std::vector<float> B_T(n * n);
 
     for (int i = 0; i < n; ++i) {
+        float* dst = &B_T[i * n];
+        const float* src = &B[i];
         for (int j = 0; j < n; ++j) {
-            B_T[j * n + i] = B[i * n + j];
+            dst[j] = src[j * n];
         }
     }
 
-    // Step 2: blocked + cache-friendly multiply
+    // blocked matmul with register accumulation
     for (int ii = 0; ii < n; ii += BS) {
-        for (int kk = 0; kk < n; kk += BS) {
-            for (int jj = 0; jj < n; jj += BS) {
+        for (int jj = 0; jj < n; jj += BS) {
+            for (int kk = 0; kk < n; kk += BS) {
 
                 int i_max = std::min(ii + BS, n);
-                int k_max = std::min(kk + BS, n);
                 int j_max = std::min(jj + BS, n);
+                int k_max = std::min(kk + BS, n);
 
                 for (int i = ii; i < i_max; ++i) {
-                    for (int k = kk; k < k_max; ++k) {
+                    float* c_row = &C[i * n];
+                    const float* a_row = &A[i * n];
 
-                        float a = A[i * n + k]; // register reuse
+                    for (int j = jj; j < j_max; ++j) {
 
-                        for (int j = jj; j < j_max; ++j) {
-                            C[i * n + j] += a * B_T[j * n + k];
+                        float sum = c_row[j];  // register accumulator
+
+                        const float* b_col = &B_T[j * n];
+
+                        for (int k = kk; k < k_max; ++k) {
+                            sum += a_row[k] * b_col[k];
                         }
+
+                        c_row[j] = sum;  // write back once
                     }
                 }
             }
